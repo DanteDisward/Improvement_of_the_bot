@@ -16,8 +16,9 @@ keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 button_calculate = KeyboardButton(text='Рассчитать')
 button_info = KeyboardButton(text='Информация')
 button_buy = KeyboardButton(text='Купить')
+button_registration = KeyboardButton(text='Регистрация')
 keyboard.row(button_calculate, button_info)
-keyboard.add(button_buy)
+keyboard.row(button_buy, button_registration)
 
 il_keyboard = InlineKeyboardMarkup()
 button_begin = InlineKeyboardButton('Рассчитать норму калорий', callback_data='calories')
@@ -37,6 +38,13 @@ class UserState(StatesGroup):
     age = State()
     growth = State()
     weight = State()
+
+
+class RegistrationState(StatesGroup):
+    username = State()
+    email = State()
+    age = State()
+    balance = State('1000')
 
 
 @dispatcher.message_handler(commands='start')
@@ -93,8 +101,8 @@ async def set_weight(message, state):
 @dispatcher.message_handler(state=UserState.weight)
 async def send_calories(message, state):
     await state.update_data(weight=message.text)
-    data = await state.get_data()
-    norm_cal = 10 * float(data['weight']) + 6.25 * float(data['growth']) - 5 * float(data['age']) + 5
+    temp_data = await state.get_data()
+    norm_cal = 10 * float(temp_data['weight']) + 6.25 * float(temp_data['growth']) - 5 * float(temp_data['age']) + 5
     await message.answer(f'Ваша норма калорий: {norm_cal}', reply_markup=keyboard)
     await state.finish()
 
@@ -102,6 +110,39 @@ async def send_calories(message, state):
 @dispatcher.message_handler(text='Информация')
 async def info_about_the_bot(message):
     (await message.answer('Это тренировочный бот.', reply_markup=keyboard))
+
+
+@dispatcher.message_handler(text='Регистрация')
+async def sing_up(message):
+    await message.answer(f'Введите имя пользователя (только латинский алфавит):')
+    await RegistrationState.username.set()
+
+
+@dispatcher.message_handler(state=RegistrationState.username)
+async def set_username(message, state):
+    if crud_functions.is_included(message.text):
+        await message.answer(f'Пользователь существует, введите другое имя')
+        await RegistrationState.username.set()
+    else:
+        await state.update_data(username=message.text)
+        await message.answer(f'Введите свой email:')
+        await RegistrationState.email.set()
+
+
+@dispatcher.message_handler(state=RegistrationState.email)
+async def set_email(message, state):
+    await state.update_data(email=message.text)
+    await message.answer(f'Введите свой возраст:')
+    await RegistrationState.age.set()
+
+
+@dispatcher.message_handler(state=RegistrationState.age)
+async def set_age(message, state):
+    await state.update_data(age=message.text)
+    temp_data = await state.get_data()
+    crud_functions.add_user(temp_data['username'], temp_data['email'], temp_data['age'])
+    await message.answer('Регистрация закончена', reply_markup=keyboard)
+    await state.finish()
 
 
 @dispatcher.message_handler()
