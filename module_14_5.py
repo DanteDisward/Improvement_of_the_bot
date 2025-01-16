@@ -4,8 +4,6 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 import crud_functions
 
-crud_functions.initiate_db()
-products = crud_functions.get_all_products()
 
 # ======================================================= Bot ==========================================================
 api_token = ''
@@ -54,6 +52,8 @@ async def start(message):
 
 @dispatcher.message_handler(text='Купить')
 async def get_buying_list(message):
+    crud_functions.initiate_db()
+    products = crud_functions.get_all_products()
     for i in products:
         await message.answer(f'Название: {i[1]} | Описание: {i[2]} | Цена: {i[3]}')
         with open(f'image/{i[0]}.jpg', 'rb') as img:
